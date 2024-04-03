@@ -1,0 +1,17 @@
+{
+  "name": "backend_app",
+  "version": "1.0.0",
+  "description": "a backend at codingEdg channel - youtube",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "javascript",
+    "mongoose",
+    "backend",
+    "codingedg"
+  ],
+  "author": "Mehtab Ali",
+  "license": "ISC"
+}
