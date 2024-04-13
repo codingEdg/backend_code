@@ -21,9 +21,9 @@ const userSchema = new Schema(
       trim: true,
     },
     password: { type: String, required: [true, "Password is Required"] },
-    coverImage: { type: String, required: true }, // from cloudinary database
+    coverImage: { type: String, default: "" }, // from cloudinary database
     avatar: { type: String, required: true },
-    refreshToken: { type: String, required: true },
+    refreshToken: { type: String },
     watchHistory: [
       { type: Schema.Types.ObjectId, ref: "Video", required: true },
     ],

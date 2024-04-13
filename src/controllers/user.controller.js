@@ -14,26 +14,35 @@ const registerUser = asyncHandler(async (req, res) => {
 
   // validation
   // check if username or email or other details are empty or incoorrect
-  console.log({ email });
+  // console.log({ email });
+  // console.log(req.body);
+  if (!validateEmail(email)) throw new ApiError(400, "invalid Email !!!");
+
   let isNotValid = [fullName, email, password, userName].some(
     (field) => field?.trim() === ""
   );
-  if (validateEmail(email)) throw new ApiError(400, "invalid Email !!!");
   if (isNotValid) {
-    throw new ApiError(400, "All is required !!!");
+    throw new ApiError(400, "All fields are required !!!");
   }
 
   // check if user is already exist : from username and email
-  const existingUser = User.findOne({
+  // if (!User) throw new ApiError(400, "user model file need to be debug");
+  const existingUser = await User.findOne({
     $or: [{ userName: userName }, { email: email }],
   });
-  console.log(`existing user ${existingUser}`);
   if (existingUser) throw new ApiError(409, "User already Exist");
 
   // multer gives access of files like req.files
   // get filt path from req.files
+  // console.log(req.files);
   const avatarLocalpath = req.files?.avatar[0]?.path;
-  const coverImageLocalpath = req.files?.coverImage[0]?.path;
+  // const coverImageLocalPath = req.files?.coverImage[0]?.path;
+  const coverImageLocalPath =
+    req.files &&
+    Array.isArray(req.files.coverImage) &&
+    req.files.coverImage.length > 0
+      ? req.files.coverImage[0]
+      : "";
 
   // if avatarLocalPath is not found then throw error
   if (!avatarLocalpath) throw new ApiError(404, "Avatar file is required");
@@ -42,7 +51,7 @@ const registerUser = asyncHandler(async (req, res) => {
   const avatar = await uploadOnCloudinary(avatarLocalpath);
   // upload coverImage on cloudinary
   const coverImage =
-    (await coverImageLocalpath) && uploadOnCloudinary(avatarLocalpath);
+    coverImageLocalPath && (await uploadOnCloudinary(coverImageLocalPath));
 
   // check avatar is uploaded on cloudinary or not if not then throw error
   if (!avatar) throw new ApiError(404, "Avatar file is required");
