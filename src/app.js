@@ -29,5 +29,22 @@ app.use(urlencoded(
 ))
 app.use(express.static("public"))
 app.use(cookieParser())
+
+
+// routes import
+
+import userRouter from './routes/user.routes.js'
+
+// route declaration
+// url wil be like https://localhost:8000/api/v1/users/login [login bcoz the app.js will give control to userRouter.js]
+app.use("/api/v1/users", userRouter)
+
+
+
+
+
+
+
+
 export { app }
 
