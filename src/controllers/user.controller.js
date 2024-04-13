@@ -41,8 +41,13 @@ const registerUser = asyncHandler(async (req, res) => {
     req.files &&
     Array.isArray(req.files.coverImage) &&
     req.files.coverImage.length > 0
-      ? req.files.coverImage[0]
+      ? req.files.coverImage[0].path
       : "";
+
+  // let coverImageLocalPath;
+  // if(req.files && Array.isArray(req.files.coverImage) && req.files.coverImage.length > 0){
+  //   coverImageLocalPath = req.files.coverImage[0].path;
+  // }
 
   // if avatarLocalPath is not found then throw error
   if (!avatarLocalpath) throw new ApiError(404, "Avatar file is required");
@@ -82,5 +87,7 @@ const registerUser = asyncHandler(async (req, res) => {
       new ApiResponse(200, createdUser, "User Registered SuccessFully !!!")
     );
 });
+
+const loginUser = asyncHandler(async (req, res) => {});
 
 export { registerUser };
