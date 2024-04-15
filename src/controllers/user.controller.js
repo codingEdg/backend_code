@@ -4,6 +4,12 @@ import { validateEmail } from "../methods/email.validation.js";
 import { User } from "../models/user.model.js";
 import { uploadOnCloudinary } from "../utils/fileUploadsCloudinary.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
+import jwt from "jsonwebtoken";
+
+const options = {
+  httpOnly: true,
+  secure: true,
+};
 
 const registerUser = asyncHandler(async (req, res) => {
   // return res.status(200).json({ message: "ok - mehtab" })
@@ -120,7 +126,7 @@ const loginUser = asyncHandler(async (req, res) => {
   // usually we get details from req.body or req.url so
   const { userName, email, password } = req.body;
 
-  if (!userName || !email)
+  if (!(userName || email))
     throw new ApiError(400, "username or email is required");
 
   // find the user
@@ -140,16 +146,10 @@ const loginUser = asyncHandler(async (req, res) => {
     user._id
   );
 
-  const loggedInUser = await user
-    .findById(user._id)
-    .select("-password -refreshToken");
+  const loggedInUser = await User.findById(user._id).select(
+    "-password -refreshToken"
+  );
 
-  // send then in cookie to user
-  const options = {
-    httpOnly: true,
-    expires: new Date(Date.now() + 900000),
-    secure: true,
-  };
   // send response
   return res
     .status(200)
@@ -179,10 +179,7 @@ const loggedOutUser = asyncHandler(async (req, res) => {
     },
     { new: true } // [ new means : in response we get new updated response in which we get refresh token undefined ]
   );
-  const options = {
-    httpOnly: true,
-    secure: true,
-  };
+
   return res
     .status(200)
     .clearCookie("accessToken", options) // clearCookie from cookieParser bcoz we need to clear the accessToken before user logout
@@ -190,4 +187,47 @@ const loggedOutUser = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, {}, "User Logged Out SuccessFully !!!"));
 });
 
-export { registerUser, loginUser, loggedOutUser };
+// another controller for user end point for frontend side to refresh the access token to get login again
+const refreshAccessToken = asyncHandler(async (req, res, next) => {
+  // 1. get user details from postman (as detals are mentioned in user model file)
+  // usually we get details from req.body or req.url so
+  const incomingRefreshToken =
+    req.cookies.refreshToken || req.body.refreshToken;
+  if (!incomingRefreshToken)
+    throw new ApiError(401, "Unauthorized Request detected !!!");
+
+  try {
+    // verify jwt using db token and the incomingRefreshToken
+    const decodedToken = jwt.verify(
+      incomingRefreshToken,
+      process.env.REFRESH_TOKEN_SECRET
+    );
+
+    // FIND USER FROM MONGOOSE DB BY ID
+    const user = await User.findById(decodedToken?._id);
+    if (!user) throw new ApiError(401, "invalid refresh token !!!");
+
+    // check if incoming token and user.refresh token is equal. if not then throw error
+    if (user.refreshToken !== incomingRefreshToken)
+      throw new ApiError(401, "Refresh token is expired or used !!!");
+
+    const { accessToken, newRefreshToken } =
+      await generateAccessAndRefreshToken(user._id);
+
+    return res
+      .status(200)
+      .cookie("accessToken", accessToken, options)
+      .cookie("refreshToken", newRefreshToken, options)
+      .json(
+        new ApiResponse(
+          200,
+          { accessToken, refreshToken: newRefreshToken },
+          "Access token refreshed SuccessFully !!!"
+        )
+      );
+  } catch (err) {
+    throw new ApiError(401, err.message || "invalid refresh token");
+  }
+});
+
+export { registerUser, loginUser, loggedOutUser, refreshAccessToken };
