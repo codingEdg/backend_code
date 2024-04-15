@@ -17,6 +17,7 @@ const registerUser = asyncHandler(async (req, res) => {
   // console.log({ email });
   // console.log(req.body);
   if (!validateEmail(email)) throw new ApiError(400, "invalid Email !!!");
+  if (!userName) throw new ApiError(400, "Invalid user name");
 
   let isNotValid = [fullName, email, password, userName].some(
     (field) => field?.trim() === ""
@@ -88,6 +89,105 @@ const registerUser = asyncHandler(async (req, res) => {
     );
 });
 
-const loginUser = asyncHandler(async (req, res) => {});
+const generateAccessAndRefreshToken = async (userId) => {
+  try {
+    const user = await User.findById(userId);
+    const refreshToken = user.generateRefreshToken();
+    const accessToken = user.generateAccessToken();
 
-export { registerUser };
+    // add refresh token to User
+    user.refreshToken = refreshToken;
+
+    // save user on database after adding refreshToken
+    // also remove validation before save bcoz we are adding just refresh token not the whole user details
+    // so it will check for all details if you don't remove the validation
+    await user.save({ validateBeforeSave: false });
+    return {
+      accessToken,
+      refreshToken,
+    };
+  } catch (err) {
+    throw new ApiError(
+      500,
+      "something went wrong while generating Access and Refresh Tokens !!!"
+    );
+  }
+};
+
+const loginUser = asyncHandler(async (req, res) => {
+  // steps to login user
+  // 1. get user details from postman (as detals are mentioned in user model file)
+  // usually we get details from req.body or req.url so
+  const { userName, email, password } = req.body;
+
+  if (!userName || !email)
+    throw new ApiError(400, "username or email is required");
+
+  // find the user
+  const user = await User.findOne({
+    $or: [{ userName: userName }, { email: email }],
+  });
+
+  if (!user) throw new ApiError(404, "User does not exist");
+
+  // check password or match password
+  const isPasswordVaild = await user.isPasswordCorrect(password);
+
+  if (!isPasswordVaild) throw new ApiError(401, "Incorrect Password");
+
+  // generate access token and refresh refreshToken
+  const { accessToken, refreshToken } = await generateAccessAndRefreshToken(
+    user._id
+  );
+
+  const loggedInUser = await user
+    .findById(user._id)
+    .select("-password -refreshToken");
+
+  // send then in cookie to user
+  const options = {
+    httpOnly: true,
+    expires: new Date(Date.now() + 900000),
+    secure: true,
+  };
+  // send response
+  return res
+    .status(200)
+    .cookie("accessToken", accessToken, options)
+    .cookie("refreshToken", refreshToken, options)
+    .json(
+      new ApiResponse(
+        200,
+        {
+          user: loggedInUser,
+          accessToken,
+          refreshToken,
+        },
+        "User Logged In SuccessFully !!!"
+      )
+    );
+});
+
+const loggedOutUser = asyncHandler(async (req, res) => {
+  // steps to logout user
+  // 1. get user details from postman (as detals are mentioned in user model file)
+  await User.findByIdAndUpdate(
+    req.user._id,
+    {
+      // set operate set mongoose things like refresh token etc
+      $set: { refreshToken: undefined },
+    },
+    { new: true } // [ new means : in response we get new updated response in which we get refresh token undefined ]
+  );
+  const options = {
+    httpOnly: true,
+    secure: true,
+  };
+  return res
+    .status(200)
+    .clearCookie("accessToken", options) // clearCookie from cookieParser bcoz we need to clear the accessToken before user logout
+    .clearCookie("refreshToken", options) // clearCookie from cookieParser bcoz we need to clear the refreshToken before user logout
+    .json(new ApiResponse(200, {}, "User Logged Out SuccessFully !!!"));
+});
+
+export { registerUser, loginUser, loggedOutUser };
