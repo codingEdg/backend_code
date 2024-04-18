@@ -230,4 +230,123 @@ const refreshAccessToken = asyncHandler(async (req, res, next) => {
   }
 });
 
-export { registerUser, loginUser, loggedOutUser, refreshAccessToken };
+const changeCurrentUserPassword = asyncHandler(async (req, res, next) => {
+  // take all required field from user (req.body)
+  const { oldPassword, newPassword } = req.body;
+
+  // bcoz user is loggedin, means midddleware had run then (req.user = user) so find the user from user._id
+  const user = await User.findById(req.user._id);
+  if (!user) throw new ApiError(401, "Unauthorized Request detected !!!");
+
+  // check if old password is correct or not
+  const isPasswordVaild = await user.isPasswordCorrect(oldPassword);
+  if (!isPasswordVaild) throw new ApiError(401, "Incorrect old Password");
+
+  // change password
+  user.password = newPassword;
+  await user.save({ validateBeforeSave: false });
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, {}, "Password Changed SuccessFully !!!"));
+});
+
+const getCurrentUser = asyncHandler(async (req, res, next) => {
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        { user: req.user },
+        "User Details Fetched SuccessFully !!!"
+      )
+    );
+});
+
+const updateAccountDetails = asyncHandler(async (req, res) => {
+  // take all required field from user (req.body)
+  const { fullName, userName, email } = req.body;
+  if (!(userName || fullName || email))
+    throw new ApiError(400, "All fields are required "); // 99 90 83 74 27
+
+  const user = User.findByIdAndUpdate(
+    req.user._id,
+    {
+      $set: {
+        userName: userName,
+        email: email,
+        fullName: fullName,
+      },
+    },
+    { new: true }
+  ).select("-password");
+
+  if (!user) throw new ApiError(400, "Given Crediential are invalid ");
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(200, { user }, "Account Details Updated SuccessFully !!!")
+    );
+});
+
+const updateUserAvatar = asyncHandler(async (req, res) => {
+  // take all required field from user (req.body)
+  const avatarLocalpath = req.file?.avatar?.path;
+  if (!avatarLocalpath) throw new ApiError(404, "Avatar file is required");
+
+  const avatar = await uploadOnCloudinary(avatarLocalpath);
+  if (!avatar.url)
+    throw new ApiError(400, "Error while uploading avatar on cloudinary");
+
+  const user = await User.findByIdAndUpdate(
+    req.user?._id,
+    {
+      $set: {
+        avatar: avatar.url,
+      },
+    },
+    { new: true }
+  ).select("-password");
+  return res
+    .status(200)
+    .json(new ApiResponse(200, user, "Avatar Updated SuccessFully !!!"));
+});
+
+const updateCoverImage = asyncHandler(async (req, res) => {
+  {
+    // take all required field from user (req.body)
+    const coverImageLocalpath = req.file?.coverImage?.path;
+    if (!coverImageLocalpath)
+      throw new ApiError(404, "cover Image file is missing");
+
+    const coverImage = await uploadOnCloudinary(coverImageLocalpath);
+    if (!coverImage.url)
+      throw new ApiError(400, "Error while uploading coverImage on cloudinary");
+
+    const user = await User.findByIdAndUpdate(
+      req.user?._id,
+      {
+        $set: {
+          coverImage: coverImage.url,
+        },
+      },
+      { new: true }
+    ).select("-password");
+    return res
+      .status(200)
+      .json(new ApiResponse(200, user, "cover Image Updated SuccessFully !!!"));
+  }
+});
+
+export {
+  registerUser,
+  loginUser,
+  loggedOutUser,
+  refreshAccessToken,
+  changeCurrentUserPassword,
+  getCurrentUser,
+  updateAccountDetails,
+  updateUserAvatar,
+  updateCoverImage,
+};
