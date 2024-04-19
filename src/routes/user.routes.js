@@ -11,6 +11,7 @@ import {
   getUserChannelProfile,
   getUserWatchHistory,
   updateAccountDetails,
+  testFunc,
 } from "../controllers/user.controller.js";
 import { upload } from "../middlewares/multer.middleware.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
@@ -33,12 +34,13 @@ router.route("/register").post(
   registerUser
 );
 
+router.route("/token").post(testFunc);
 router.route("/login").post(loginUser);
 
 // secure routes
 router.route("/logout").post(verifyJWT, loggedOutUser);
 
-router.route("/refreshtoken").post(refreshAccessToken);
+router.route("/refresh-token").post(refreshAccessToken);
 
 router.route("/change-password").post(verifyJWT, changeCurrentUserPassword);
 
@@ -50,7 +52,7 @@ router
   .route("/update-avatar")
   .patch(verifyJWT, upload.single("avatar"), updateUserAvatar);
 router
-  .route("/update-cover-image")
+  .route("/cover-image")
   .patch(verifyJWT, upload.single("coverImage"), updateCoverImage);
 
 router.route("/c/:username").get(verifyJWT, getUserChannelProfile);

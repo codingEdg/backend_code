@@ -5,8 +5,13 @@ import { User } from "../models/user.model.js";
 import { uploadOnCloudinary } from "../utils/fileUploadsCloudinary.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import jwt from "jsonwebtoken";
+import mongoose from "mongoose";
 import { toBeDeletedAvatar } from "../utils/toBeDeletedAvatar.js";
 import { deleteCoverImage } from "../utils/deleteCoverImage.js";
+
+const testFunc = asyncHandler(async (req, res) => {
+  return res.status(200).json(new ApiResponse(201, {}, "success full tested"));
+});
 
 const options = {
   httpOnly: true,
@@ -173,6 +178,7 @@ const loginUser = asyncHandler(async (req, res) => {
 const loggedOutUser = asyncHandler(async (req, res) => {
   // steps to logout user
   // 1. get user details from postman (as detals are mentioned in user model file)
+
   await User.findByIdAndUpdate(
     req.user._id,
     {
@@ -191,7 +197,7 @@ const loggedOutUser = asyncHandler(async (req, res) => {
 });
 
 // another controller for user end point for frontend side to refresh the access token to get login again
-const refreshAccessToken = asyncHandler(async (req, res, next) => {
+const refreshAccessToken = asyncHandler(async (req, res) => {
   // 1. get user details from postman (as detals are mentioned in user model file)
   // usually we get details from req.body or req.url so
   const incomingRefreshToken =
@@ -233,9 +239,10 @@ const refreshAccessToken = asyncHandler(async (req, res, next) => {
   }
 });
 
-const changeCurrentUserPassword = asyncHandler(async (req, res, next) => {
+const changeCurrentUserPassword = asyncHandler(async (req, res) => {
   // take all required field from user (req.body)
   const { oldPassword, newPassword } = req.body;
+  // console.log({ oldPassword });
 
   // bcoz user is loggedin, means midddleware had run then (req.user = user) so find the user from user._id
   const user = await User.findById(req.user._id);
@@ -248,7 +255,7 @@ const changeCurrentUserPassword = asyncHandler(async (req, res, next) => {
   // change password
   user.password = newPassword;
   await user.save({ validateBeforeSave: false });
-
+  console.log("password changed");
   return res
     .status(200)
     .json(new ApiResponse(200, {}, "Password Changed SuccessFully !!!"));
@@ -269,10 +276,10 @@ const getCurrentUser = asyncHandler(async (req, res, next) => {
 const updateAccountDetails = asyncHandler(async (req, res) => {
   // take all required field from user (req.body)
   const { fullName, userName, email } = req.body;
-  if (!(userName || fullName || email))
+  if (!(userName && fullName && email))
     throw new ApiError(400, "All fields are required "); // 99 90 83 74 27
 
-  const user = User.findByIdAndUpdate(
+  const user = await User.findByIdAndUpdate(
     req.user._id,
     {
       $set: {
@@ -289,13 +296,14 @@ const updateAccountDetails = asyncHandler(async (req, res) => {
   return res
     .status(200)
     .json(
-      new ApiResponse(200, { user }, "Account Details Updated SuccessFully !!!")
+      new ApiResponse(200, user, "Account Details Updated SuccessFully !!!")
     );
 });
 
 const updateUserAvatar = asyncHandler(async (req, res) => {
+  // console.log(req.file.path)
   // take all required field from user (req.body)
-  const avatarLocalpath = req.file?.avatar?.path;
+  const avatarLocalpath = req.file?.path;
   if (!avatarLocalpath) throw new ApiError(404, "Avatar file is required");
 
   const avatar = await uploadOnCloudinary(avatarLocalpath);
@@ -312,7 +320,7 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
     { new: true }
   ).select("-password");
 
-  toBeDeletedAvatar(avatarLocalpath);
+  // toBeDeletedAvatar(avatarLocalpath);
 
   return res
     .status(200)
@@ -322,7 +330,7 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
 const updateCoverImage = asyncHandler(async (req, res) => {
   {
     // take all required field from user (req.body)
-    const coverImageLocalpath = req.file?.coverImage?.path;
+    const coverImageLocalpath = req.file?.path;
     if (!coverImageLocalpath)
       throw new ApiError(404, "cover Image file is missing");
 
@@ -339,7 +347,7 @@ const updateCoverImage = asyncHandler(async (req, res) => {
       },
       { new: true }
     ).select("-password");
-    deleteCoverImage(coverImageLocalpath);
+    // deleteCoverImage(coverImageLocalpath);
     return res
       .status(200)
       .json(new ApiResponse(200, user, "cover Image Updated SuccessFully !!!"));
@@ -487,6 +495,7 @@ const getUserWatchHistory = asyncHandler(async (req, res) => {
 });
 
 export {
+  testFunc,
   registerUser,
   loginUser,
   loggedOutUser,
